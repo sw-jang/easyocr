@@ -1,0 +1,2 @@
+# easyocr
+EasyOCR application
