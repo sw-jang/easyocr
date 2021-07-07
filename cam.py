@@ -1,3 +1,6 @@
+from dictionary import *
+
+import argparse
 import easyocr
 import numpy as np
 import random
@@ -7,27 +10,32 @@ import cv2
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-# target words
-dic = ['깍자바', '근초대왕', '팬텀', '보가드', '꽉자바']
-
 # random colors
 np.random.seed(42)
 COLORS = np.random.randint(0, 255, size=(255, 3),dtype="uint8")
 font = ImageFont.truetype('fonts/HMKMRHD.TTF', 20)
 
+def parse_opt():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--width', type=int, default=640, help='width of output frame in pixels i.e. 480, 640, ...')
+    parser.add_argument('--height', type=int, default=480, help='height of output frame in pixels i. e. 480, 640, ...')
+    parser.add_argument('--frame', type=int, default=30, help='fps of output frame')
+    parser.add_argument('--device', type=str, default='gpu', help='cpu or gpu')
+    opt = parser.parse_args()
+    return opt
 
 if __name__ == '__main__':
-    # set easy ocr
-    reader = easyocr.Reader(['ko'], gpu=True)
+    opt = parse_opt()
 
-    # width, height, frame
-    w = 640
-    h = 480
-    f = 30
+    # set easy ocr
+    if opt.device == 'cpu':
+        reader = easyocr.Reader(['ko'], gpu=False)
+    else:
+        reader = easyocr.Reader(['ko'], gpu=True)
 
     # set realsense camera pipeline
     config = rs.config()
-    config.enable_stream(rs.stream.color, w, h, rs.format.bgr8, f)
+    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, opt.frame)
 
     # start realsense camera pipeline
     pipe = rs.pipeline()
@@ -38,6 +46,7 @@ if __name__ == '__main__':
             # get color frame
             frames = pipe.wait_for_frames()
             frame = np.array(frames.get_color_frame().get_data())
+            frame = cv2.resize(frame, (opt.width, opt.height))
 
             # PILLOW used to print korean
             pil = Image.fromarray(frame)
@@ -48,9 +57,7 @@ if __name__ == '__main__':
 
             for (bbox, text, prob) in results:
                 # if text in target words
-                if text in dic:
-                    if text == '꽉자바':
-                        text = '깍자바'
+                if check_dic(text):
                     # bbox computation
                     (tl, tr, br, bl) = bbox
                     tl = (int(tl[0]), int(tl[1]))
@@ -65,7 +72,8 @@ if __name__ == '__main__':
                     # draw and print text read
                     draw.rectangle((tl, br), outline=tuple(color), width=2)
                     draw.text((tl[0], tl[1]-30), text, fill=tuple(color), font = font)
-                    print(text)
+                    a, b, c = get_summary(text)
+                    print(a, b, c)
                     frame = np.array(pil)
             # show result image
             cv2.imshow('test', frame)
