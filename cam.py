@@ -8,6 +8,10 @@ from PIL import ImageFont, ImageDraw, Image
 import pyrealsense2 as rs
 import cv2
 import os
+import pyttsx3
+import gtts
+import playsound
+
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 # random colors
@@ -32,6 +36,13 @@ if __name__ == '__main__':
         reader = easyocr.Reader(['ko'], gpu=False)
     else:
         reader = easyocr.Reader(['ko'], gpu=True)
+
+    # voice engine 'pyttsx3' initialization and setting
+    engine = pyttsx3.init()
+    engine.setProperty('rate', 180)
+    rate = engine.getProperty('rate')
+    voices = engine.getProperty('voices')
+    engine.setProperty('voice', voices[1].id)
 
     # set realsense camera pipeline
     config = rs.config()
@@ -73,6 +84,10 @@ if __name__ == '__main__':
                     draw.rectangle((tl, br), outline=tuple(color), width=2)
                     draw.text((tl[0], tl[1]-30), text, fill=tuple(color), font = font)
                     a, b, c = get_summary(text)
+                    # voice output of datas
+                    engine.say(text, a, b, c)
+                    engine.runAndWait()
+
                     print(a, b, c)
                     frame = np.array(pil)
             # show result image
@@ -82,3 +97,4 @@ if __name__ == '__main__':
                 break   
     finally:
         pipe.stop()
+        engine.stop()
